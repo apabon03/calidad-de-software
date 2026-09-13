@@ -12,6 +12,8 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.List;
+import java.util.NoSuchElementException;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -80,4 +82,54 @@ class CartServiceTest {
 
         verify(cartItemRepository).findBySessionId(anyString());
     }
+
+        @Test
+        @DisplayName("Agrega un producto nuevo al carrito")
+        void agregaProductoNuevoAlCarrito() {
+                Product product = new Product("sauce-labs-backpack", "Sauce Labs Backpack", "Description", 29.99, "/img/backpack.png");
+                product.setId(1L);
+                CartItem savedItem = new CartItem("session-001", product, 2);
+
+                when(productRepository.findById(1L)).thenReturn(Optional.of(product));
+                when(cartItemRepository.findBySessionIdAndProductId("session-001", 1L)).thenReturn(Optional.empty());
+                when(cartItemRepository.save(any(CartItem.class))).thenReturn(savedItem);
+
+                CartItem resultado = cartService.addToCart("session-001", 1L, 2);
+
+                assertThat(resultado).isSameAs(savedItem);
+                verify(cartItemRepository).save(argThat(item ->
+                                item.getSessionId().equals("session-001")
+                                                && item.getProduct() == product
+                                                && item.getQuantity().equals(2)));
+        }
+
+        @Test
+        @DisplayName("Acumula la cantidad cuando el producto ya esta en el carrito")
+        void acumulaCantidadDeProductoExistente() {
+                Product product = new Product("sauce-labs-backpack", "Sauce Labs Backpack", "Description", 29.99, "/img/backpack.png");
+                product.setId(1L);
+                CartItem existingItem = new CartItem("session-001", product, 2);
+
+                when(productRepository.findById(1L)).thenReturn(Optional.of(product));
+                when(cartItemRepository.findBySessionIdAndProductId("session-001", 1L)).thenReturn(Optional.of(existingItem));
+                when(cartItemRepository.save(existingItem)).thenReturn(existingItem);
+
+                CartItem resultado = cartService.addToCart("session-001", 1L, 3);
+
+                assertThat(resultado).isSameAs(existingItem);
+                assertThat(existingItem.getQuantity()).isEqualTo(5);
+                verify(cartItemRepository).save(existingItem);
+        }
+
+        @Test
+        @DisplayName("Lanza excepcion cuando el producto no existe")
+        void lanzaExcepcionSiProductoNoExiste() {
+                when(productRepository.findById(99L)).thenReturn(Optional.empty());
+
+                assertThatThrownBy(() -> cartService.addToCart("session-001", 99L, 1))
+                                .isInstanceOf(NoSuchElementException.class)
+                                .hasMessage("Producto no encontrado: 99");
+
+                verifyNoInteractions(cartItemRepository);
+        }
 }
