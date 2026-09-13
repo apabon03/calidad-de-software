@@ -15,6 +15,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import java.util.List;
+import java.util.NoSuchElementException;
 
 import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
@@ -123,5 +124,44 @@ class CartControllerTest {
                                 .contentType(MediaType.APPLICATION_JSON)
                 )
                 .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("Debe agregar un producto y retornar 200")
+    void agregaProductoAlCarritoExitosamente() throws Exception {
+        Product product = new Product("sauce-labs-backpack", "Sauce Labs Backpack", "Description", 29.99, "/img/backpack.png");
+        CartItem cartItem = new CartItem("session-001", product, 2);
+
+        when(cartService.addToCart("session-001", 1L, 2)).thenReturn(cartItem);
+
+        mockMvc
+                .perform(
+                        post("/api/cart")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("{\"sessionId\":\"session-001\",\"productId\":1,\"quantity\":2}")
+                )
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.sessionId").value("session-001"))
+                .andExpect(jsonPath("$.product.code").value("sauce-labs-backpack"))
+                .andExpect(jsonPath("$.quantity").value(2));
+
+        verify(cartService).addToCart("session-001", 1L, 2);
+    }
+
+    @Test
+    @DisplayName("Debe retornar 404 cuando el producto no existe")
+    void devuelveNotFoundSiProductoNoExiste() throws Exception {
+        when(cartService.addToCart("session-001", 99L, 1))
+                .thenThrow(new NoSuchElementException("Producto no encontrado: 99"));
+
+        mockMvc
+                .perform(
+                        post("/api/cart")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("{\"sessionId\":\"session-001\",\"productId\":99,\"quantity\":1}")
+                )
+                .andExpect(status().isNotFound());
+
+        verify(cartService).addToCart("session-001", 99L, 1);
     }
 }
