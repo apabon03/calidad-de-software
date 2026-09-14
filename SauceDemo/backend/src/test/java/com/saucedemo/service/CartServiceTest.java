@@ -11,6 +11,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.DataIntegrityViolationException;
 
 import java.util.List;
 import java.util.NoSuchElementException;
@@ -141,4 +142,42 @@ class CartServiceTest {
         }
     }
 
+    @Nested
+    @DisplayName("removeItem")
+    class RemoveItem {
+
+        @Test
+        @DisplayName("Delega la eliminación en el repositorio")
+        void delegaLaEliminacionEnElRepositorio() {
+            cartService.removeItem(1L);
+
+            verify(cartItemRepository).deleteById(1L);
+            verifyNoMoreInteractions(cartItemRepository);
+            verifyNoInteractions(productRepository);
+        }
+
+        @Test
+        @DisplayName("No falla cuando el item no existe")
+        void noFallaCuandoElItemNoExiste() {
+            // deleteById de Spring Data es findById(id).ifPresent(this::delete): un no-op
+            // silencioso si el id no existe. De ahí que la operación sea idempotente.
+            assertThatCode(() -> cartService.removeItem(99L))
+                    .doesNotThrowAnyException();
+
+            verify(cartItemRepository).deleteById(99L);
+        }
+
+        @Test
+        @DisplayName("Propaga la excepción cuando el repositorio falla")
+        void propagaLaExcepcionCuandoElRepositorioFalla() {
+            doThrow(new DataIntegrityViolationException("El item esta referenciado"))
+                    .when(cartItemRepository).deleteById(1L);
+
+            assertThatThrownBy(() -> cartService.removeItem(1L))
+                    .isInstanceOf(DataIntegrityViolationException.class)
+                    .hasMessage("El item esta referenciado");
+
+            verify(cartItemRepository).deleteById(1L);
+        }
+    }
 }
