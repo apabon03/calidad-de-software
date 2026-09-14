@@ -179,5 +179,65 @@ class CartServiceTest {
 
             verify(cartItemRepository).deleteById(1L);
         }
+
+
+        @Nested
+        @DisplayName("updateQuantity")
+        class UpdateQuantity {
+
+            @Test
+            @DisplayName("Actualiza la cantidad del item y lo guarda")
+            void actualizaLaCantidadDelItemYLoGuarda() {
+
+
+                Long itemId = 1L;
+                Integer nuevaCantidad = 5;
+
+                CartItem item = new CartItem();
+                item.setId(itemId);
+                item.setQuantity(2);
+
+                when(cartItemRepository.findById(itemId))
+                        .thenReturn(Optional.of(item));
+
+                when(cartItemRepository.save(item))
+                        .thenReturn(item);
+
+
+                CartItem resultado =
+                        cartService.updateQuantity(itemId, nuevaCantidad);
+
+
+                assertThat(resultado).isSameAs(item);
+                assertThat(resultado.getQuantity())
+                        .isEqualTo(5);
+
+                verify(cartItemRepository).findById(itemId);
+                verify(cartItemRepository).save(item);
+            }
+
+            @Test
+            @DisplayName("Lanza NoSuchElementException cuando el item no existe")
+            void lanzaExcepcionCuandoElItemNoExiste() {
+
+
+                Long itemId = 99L;
+                Integer nuevaCantidad = 5;
+
+                when(cartItemRepository.findById(itemId))
+                        .thenReturn(Optional.empty());
+
+
+                assertThatThrownBy(() ->
+                        cartService.updateQuantity(itemId, nuevaCantidad)
+                )
+                        .isInstanceOf(NoSuchElementException.class)
+                        .hasMessage("Item de carrito no encontrado: 99");
+
+                verify(cartItemRepository).findById(itemId);
+                verify(cartItemRepository, never())
+                        .save(any(CartItem.class));
+            }
+        }
     }
 }

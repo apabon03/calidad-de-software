@@ -220,4 +220,58 @@ class CartControllerTest {
             verifyNoInteractions(cartService);
         }
     }
+
+    @Nested
+    @DisplayName("PUT /api/cart/{itemId}")
+    class UpdateQuantity {
+
+        @Test
+        @DisplayName("Retorna 200 con el item actualizado")
+        void retorna200ConElItemActualizado() throws Exception {
+
+            // Arrange
+            CartItem cartItem = new CartItem();
+            cartItem.setQuantity(5);
+
+            when(cartService.updateQuantity(1L, 5))
+                    .thenReturn(cartItem);
+
+            // Act + Assert
+            mockMvc
+                    .perform(
+                            put("/api/cart/1")
+                                    .contentType(MediaType.APPLICATION_JSON)
+                                    .content("{\"quantity\":5}")
+                    )
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.quantity").value(5));
+
+            verify(cartService).updateQuantity(1L, 5);
+        }
+
+        @Test
+        @DisplayName("Retorna 404 cuando el item no existe")
+        void retorna404CuandoElItemNoExiste() throws Exception {
+
+
+            when(cartService.updateQuantity(1L, 5))
+                    .thenThrow(
+                            new NoSuchElementException(
+                                    "Item de carrito no encontrado: 1"
+                            )
+                    );
+
+
+            mockMvc
+                    .perform(
+                            put("/api/cart/1")
+                                    .contentType(MediaType.APPLICATION_JSON)
+                                    .content("{\"quantity\":5}")
+                    )
+                    .andExpect(status().isNotFound());
+
+            verify(cartService).updateQuantity(1L, 5);
+        }
+    }
 }
+
