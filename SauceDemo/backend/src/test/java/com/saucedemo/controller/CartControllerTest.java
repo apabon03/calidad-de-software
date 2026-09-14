@@ -20,6 +20,7 @@ import java.util.NoSuchElementException;
 
 import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -172,4 +173,51 @@ class CartControllerTest {
         }
     }
 
+    @Nested
+    @DisplayName("DELETE /api/cart/{itemId}")
+    class RemoveItem {
+
+        @Test
+        @DisplayName("Retorna 204 sin cuerpo tras eliminar el item")
+        void retorna204SinCuerpo() throws Exception {
+            mockMvc
+                    .perform(
+                            delete("/api/cart/1")
+                                    .contentType(MediaType.APPLICATION_JSON)
+                    )
+                    .andExpect(status().isNoContent())
+                    .andExpect(content().string(""));
+
+            verify(cartService).removeItem(1L);
+        }
+
+        @Test
+        @DisplayName("Retorna 204 aunque el item no exista")
+        void retorna204AunqueElItemNoExista() throws Exception {
+            // Contrato actual, distinto al de PUT: removeItem se apoya en deleteById, que no
+            // falla con un id inexistente, así que el endpoint no distingue "lo eliminé" de
+            // "nunca existió". Si algún día se decide responder 404, esta prueba debe fallar.
+            mockMvc
+                    .perform(
+                            delete("/api/cart/999")
+                                    .contentType(MediaType.APPLICATION_JSON)
+                    )
+                    .andExpect(status().isNoContent());
+
+            verify(cartService).removeItem(999L);
+        }
+
+        @Test
+        @DisplayName("Retorna 400 cuando el itemId no es numérico")
+        void retorna400CuandoElItemIdNoEsNumerico() throws Exception {
+            mockMvc
+                    .perform(
+                            delete("/api/cart/abc")
+                                    .contentType(MediaType.APPLICATION_JSON)
+                    )
+                    .andExpect(status().isBadRequest());
+
+            verifyNoInteractions(cartService);
+        }
+    }
 }
